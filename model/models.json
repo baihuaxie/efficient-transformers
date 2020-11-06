@@ -1,0 +1,46 @@
+{
+
+    "resnet18": "resnet.resnet18",
+    "resnet34": "resnet.resnet34",
+    "resnet50": "resnet.resnet50",
+    "resnet101": "resnet.resnet101",
+    "resnet152": "resnet.resnet152",
+
+    "resnext50_32x4d": "resnet.resnext50_32x4d",
+    "resnext101_32x8d": "resnet.resnext101_32x8d",
+
+    "wide_resnet50_2": "resnet.wide_resnet50_2",
+    "wide_resnet101_2": "resnet.wide_resnet101_2",
+
+    "densenet40_k12": "densenet.densenet40_k12",
+    "densenet100_k12": "densenet.densenet100_k12",
+    "densenet100_k24": "densenet.densenet100_k24",
+    "densenetbc100_k12": "densenet.densenetbc100_k12",
+    "densenetbc250_k24": "densenet.densenetbc250_k24",
+    "densenetbc190_k40": "densenet.densenetbc190_k40",
+
+    "mobilenetv1_28_1p0_32": "mobilenetv1.mobilenetv1_28_1p0_32",
+    "mobilenetv1_28_1p25_32": "mobilenetv1.mobilenetv1_28_1p25_32",
+    "mobilenetv1_28_0p75_32": "mobilenetv1.mobilenetv1_28_0p75_32",
+
+    "mobilenet20_1p0_t3": "mobilenet.mobilenet20_1p0_t3",
+    "mobilenet20_1p0_t4": "mobilenet.mobilenet20_1p0_t4",
+
+    "shufflenetv1_50_s1p0_g1": "shufflenetv1.shufflenetv1_50_s1p0_g1",
+    "shufflenetv1_50_s1p0_g2": "shufflenetv1.shufflenetv1_50_s1p0_g2",
+    "shufflenetv1_50_s1p0_g3": "shufflenetv1.shufflenetv1_50_s1p0_g3",
+    "shufflenetv1_50_s1p0_g4": "shufflenetv1.shufflenetv1_50_s1p0_g4",
+    "shufflenetv1_50_s1p0_g8": "shufflenetv1.shufflenetv1_50_s1p0_g8",
+    "shufflenetv1_50_s0p5_g1": "shufflenetv1.shufflenetv1_50_s0p5_g1",
+    "shufflenetv1_50_s0p5_g2": "shufflenetv1.shufflenetv1_50_s0p5_g2",
+    "shufflenetv1_50_s0p5_g3": "shufflenetv1.shufflenetv1_50_s0p5_g3",
+    "shufflenetv1_50_s0p5_g4": "shufflenetv1.shufflenetv1_50_s0p5_g4",
+    "shufflenetv1_50_s0p5_g8": "shufflenetv1.shufflenetv1_50_s0p5_g8",
+
+    "shufflenetv2_51_s0p5": "shufflenetv2.shufflenetv2_51_s0p5",
+    "shufflenetv2_51_s1p0": "shufflenetv2.shufflenetv2_51_s1p0",
+    "shufflenetv2_51_s1p5": "shufflenetv2.shufflenetv2_51_s1p5",
+    "shufflenetv2_51_s2p0": "shufflenetv2.shufflenetv2_51_s2p0",
+
+    "mnasneta1": "mnasnet.mnasneta1"
+}

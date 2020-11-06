@@ -1,0 +1,14 @@
+{
+    "optimizer": "SGD",
+    "initial_lr": 1e-1,
+    "scheduler": "MultiStepLR",
+    "scheduler_milestones": [10, 20],
+    "scheduler_gamma": 0.1,
+    "momentum": 0.9,
+    "weight_decay": 1e-4,
+    "batch_size": 32,
+    "num_epochs": 2,
+    "save_summary_steps": 100,
+    "num_workers": 4,
+    "pin_cuda": false
+}
