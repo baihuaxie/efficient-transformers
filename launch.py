@@ -24,7 +24,7 @@ def launch_training_job(train_dir, data_dir, job_name, params):
     params.save(json_path)
 
     # Launch training with this config
-    cmd = "{python} train.py --exp_dir={exp_dir} --data_dir {data_dir} --model {model} --run_mode train".format(python=PYTHON, \
+    cmd = "{python} main.py --exp_dir={exp_dir} --data_dir {data_dir} --model {model} --run_mode train".format(python=PYTHON, \
                 exp_dir=exp_dir, data_dir=data_dir, model=params.model)
     print(cmd)
     check_call(cmd, shell=True)

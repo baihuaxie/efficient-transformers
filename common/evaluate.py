@@ -11,14 +11,18 @@ def evaluate(model, loss_fn, dataloader, metrics, params, device):
 
     Args:
         model: (torch.nn.Module) the network model to be evaluated
-        loss_fn: (function) a function which takes output_batch and labels_batch and returns the loss over a batch
-        dataloader: (torch.utils.data.DataLoader) a DataLoader object that returns access to the validation set
-        metrics: (dict) a dictionary; each element contains a function to return the value for the metric
+        loss_fn: (function) a function which takes output_batch and labels_batch
+                 and returns the loss over a batch
+        dataloader: (torch.utils.data.DataLoader) a DataLoader object that returns
+                 access to the validation set
+        metrics: (dict) a dictionary; each element contains a function to return
+                 the value for the metric
         params: (Params) hyperparameters
         device: (str) device type; usually 'cuda:0' or 'cpu'
 
     Returns:
-        metrics_mean: (dict) a dictionary containing mean value for each metrics evaluated on the validation set
+        metrics_mean: (dict) a dictionary containing mean value for each metrics
+                      evaluated on the validation set
 
     """
 
@@ -46,7 +50,8 @@ def evaluate(model, loss_fn, dataloader, metrics, params, device):
 
         # move data to cpu
         # compute metrics on this batch
-        summary_batch = {metric: metrics[metric](output_batch.to('cpu'), labels_batch.to('cpu')) for metric in metrics.keys()}
+        summary_batch = {metric: metrics[metric](output_batch.to('cpu'), \
+            labels_batch.to('cpu')) for metric in metrics.keys()}
         summary_batch['loss'] = loss_detach.item()
         summ.append(summary_batch)
 

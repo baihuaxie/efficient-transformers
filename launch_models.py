@@ -3,7 +3,7 @@
 import argparse
 import os
 
-import utils
+from common import utils
 import launch
 
 
@@ -39,11 +39,11 @@ if __name__ == "__main__":
         #'shufflenetv2_51_s0p5',
         #'shufflenetv2_51_s1p5',
         'resnext50_32x4d',
-        'wide_resnet50_2',
-        'mobilenet20_1p0_t3',
-        'mobilenetv1_28_1p0_32',
-        'shufflenetv2_51_s1p0',
-        'shufflenetv1_50_s1p0_g2',
+        #'wide_resnet50_2',
+        #'mobilenet20_1p0_t3',
+        #'mobilenetv1_28_1p0_32',
+        #'shufflenetv2_51_s1p0',
+        #'shufflenetv1_50_s1p0_g2',
         #'densenet40_k12',
         #'densenet100_k12',
         #'densenet100_k24',
