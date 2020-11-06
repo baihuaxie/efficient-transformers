@@ -3,7 +3,7 @@ Train the model
 
 Usage:
 
-    $ train.py --model model_name --data_dir /path/to/dataset --exp_dir /path/to/experiment
+    $ train.py --model model_name --data_dir /path/to/dataset --run_dir /path/to/experiment
 
     optional commandline arguments:
     --restore_file /path/to/pretrained/weights
@@ -19,8 +19,6 @@ Note:
 import argparse
 import os
 import logging
-from importlib import import_module
-from tqdm import tqdm
 
 # torch
 import torch
@@ -29,22 +27,22 @@ import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 
 
-from common import data_loader, utils
-from common import objectives as obj
+from common.data_loader import select_n_random, fetch_dataloader, fetch_subset_dataloader
+from common.utils import Params, load_checkpoint, save_checkpoint, set_logger, print_net_summary
+from common.objectives import loss_fn, metrics
 from common.evaluate import evaluate
 from common.train import train
+from model.build_models import get_network_builder
 
 
 # commandline
 parser = argparse.ArgumentParser()
-parser.add_argument('--model', default='resnet18',
-                    help='Specify ResNet variant to be trained')
+parser.add_argument('--run_dir', default='./experiments/launch-test',
+                    help='Directory containing the runset.json')
 parser.add_argument('--data_dir', default='./data/',
                     help='Directory containing the dataset')
-parser.add_argument('--exp_dir', default='./experiments/launch-test',
-                    help='Directory containing the params.json')
 parser.add_argument('--restore_file', default='best',
-                    help='Optional, name of file in --exp_dir containing weights / \
+                    help='Optional, name of file in --run_dir containing weights / \
                         hyperparameters to be loaded before training')
 parser.add_argument('--run_mode', default='test', help='test mode run a subset \
     of batches to test flow')
@@ -52,7 +50,7 @@ parser.add_argument('--run_mode', default='test', help='test mode run a subset \
 
 
 def train_and_evaluate(model, optimizer, train_loader, val_loader, loss_fn, metrics, params,
-                       exp_dir, device, scheduler=None, restore_file=None, writer=None):
+                       run_dir, device, scheduler=None, restore_file=None, writer=None):
     """
     Train the model and evaluate on every epoch
 
@@ -68,7 +66,7 @@ def train_and_evaluate(model, optimizer, train_loader, val_loader, loss_fn, metr
         metrics: (dict) a dictionary of functions that compute a metric using the
                  batch_output and batch_labels
         params: (Params) hyperparameters
-        exp_dir: (string) directory containing params.json, learned weights, and logs
+        run_dir: (string) directory containing params.json, learned weights, and logs
         restore_file: (string) optional = name of file to restore training from -> no
                       filename extension .pth or .pth.tar/gz
         writer: (tensorboard) tensorboard summary writer
@@ -78,10 +76,10 @@ def train_and_evaluate(model, optimizer, train_loader, val_loader, loss_fn, metr
 
     # reload the weights from restore_file if specified
     if restore_file is not None:
-        restore_path = os.path.join(exp_dir, restore_file + '.pth.zip')
+        restore_path = os.path.join(run_dir, restore_file + '.pth.zip')
         if os.path.exists(restore_path):
             logging.info("Restoring weights from {}".format(restore_path))
-            utils.load_checkpoint(restore_path, model, optimizer)
+            load_checkpoint(restore_path, model, optimizer)
 
     best_val_accu = 0.0
 
@@ -110,14 +108,14 @@ def train_and_evaluate(model, optimizer, train_loader, val_loader, loss_fn, metr
         is_best = val_accu >= best_val_accu
 
         # save weights
-        utils.save_checkpoint(
+        save_checkpoint(
             {
                 'epoch': epoch + 1,
                 'state_dict': model.state_dict(),
                 'optim_dict': optimizer.state_dict()
             },
             is_best=is_best,
-            checkpoint=exp_dir
+            checkpoint=run_dir
         )
 
         # if best accuray
@@ -148,102 +146,72 @@ if __name__ == '__main__':
     ### -------- logistics --------###
     # load the params from json file
     args = parser.parse_args()
-    json_path = os.path.join(args.exp_dir, 'params.json')
+    json_path = os.path.join(args.run_dir, 'runset.json')
     assert os.path.isfile(json_path), "No json configuration file found at {}".format(json_path)
-    myParams = utils.Params(json_path)
+    params = Params(json_path)
 
-    # load the models from json file
-    models_dict = utils.Params('./model/models.json')
+    # parse run parameters
+    dataset = params.data['dataset']
+    dataset_kwargs = params.data['kwargs']
+    optim_type = params.optimizer['type']
+    optim_kwargs = params.optimizer['kwargs']
+    lr_type = params.scheduler['type']
+    lr_kwargs = params.scheduler['kwargs']
 
     # tensorboard
-    writer = SummaryWriter(args.exp_dir)
+    writer = SummaryWriter(args.run_dir)
 
     # set the logger
-    utils.set_logger(os.path.join(args.exp_dir, 'train.log'))
+    set_logger(os.path.join(args.run_dir, 'train.log'))
 
     # use GPU if available
-    myParams.cuda = torch.cuda.is_available()
-    myDevice = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    params.cuda = torch.cuda.is_available()
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     # set random seed for reproducible experiments
     torch.manual_seed(200)
-    if myParams.cuda:
+    if params.cuda:
         torch.cuda.manual_seed(200)
 
-    ### --------- model ---------- ###
-    # define the model
-    net, model = models_dict.dict[args.model].split('.')
-    myModel = getattr(import_module('.'+net, 'model'), model)().to(myDevice)
+    ### ------ instantiations ----- ###
+    # build model
+    model = get_network_builder(params.model)().to(device)
+
+    # build the optimizer
+    optimizer = getattr(optim, optim_type)(model.parameters(), **optim_kwargs)
+
+    # build learning rate scheduler
+    scheduler = getattr(optim.lr_scheduler, lr_type)(optimizer, lr_kwargs)
 
     # add model architecture to tensorboard & log
-    images, labels = data_loader.select_n_random('train', args.data_dir, n=2)
-    images, labels = images.to(myDevice), labels.to(myDevice)
-    # write to tensorboard
-    writer.add_graph(myModel, images.float())
-    # write to log file
-    utils.print_net_summary(args.exp_dir+'/net_summary.log', myModel, images)
+    images, _ = select_n_random('train', args.data_dir, dataset, n=2)
+    images = images.to(device)
+    # 1) write architecutre to tensorboard
+    writer.add_graph(model, images.float())
+    # 2) write architecture to log file using torchsummary package
+    print_net_summary(args.run_dir+'/net_summary.log', model, images)
 
 
-    ### ------ data pipeline ----- ###
-    logging.info('Loading datasets...')
+    ### ------ load dataset ----- ###
+    logging.info('Loading dataset...')
 
     # fetch the data loaders
-    # if in test mode, fetch 10 batches
+    # if in test mode, fetch 10 batches (default batch size = 32)
     if args.run_mode == 'test':
-        data_loaders = data_loader.fetch_subset_dataloader(
-            ['train', 'test'], args.data_dir, myParams, 10)
+        data_loaders = fetch_subset_dataloader(['train', 'test'], args.data_dir, dataset, \
+            **dataset_kwargs)
         train_dl = data_loaders['train']
         test_dl = data_loaders['test']
     else:
-        data_loaders = data_loader.fetch_dataloader(
-            ['train', 'test'], args.data_dir, myParams)
+        data_loaders = fetch_dataloader(['train', 'test'], args.data_dir, dataset, \
+            **dataset_kwargs)
         train_dl = data_loaders['train']
         test_dl = data_loaders['test']
 
     logging.info('- done.')
 
-    ### ------ optimizer --------- ###
-    # define the optimizer
-    if myParams.optimizer == 'Adam':
-        # use Adam
-        myOptimizer = optim.Adam(myModel.parameters(), lr=myParams.initial_lr,
-                                 weight_decay=myParams.weight_decay)
-    if myParams.optimizer == 'SGD':
-        # use SGD w.t. Nesterov momentum
-        myOptimizer = optim.SGD(myModel.parameters(), lr=myParams.initial_lr, momentum=myParams.momentum,
-                                weight_decay=myParams.weight_decay, nesterov=True)
+    # start training
+    logging.info('Starting training for {} epoch(s)...'.format(params.num_epochs))
 
-    if myParams.optimizer == 'RMSprop':
-        # use RMSprop
-        myOptimizer = optim.RMSprop(myModel.parameters(), lr=myParams.initial_lr, momentum=myParams.momentum,
-                                    weight_decay=myParams.weight_decay, alpha=myParams.alpha)
-
-    ### ------ scheduler --------- ###
-    # define learning rate scheduler
-    if myParams.scheduler == 'MultiStepLR':
-        myScheduler = optim.lr_scheduler.MultiStepLR(myOptimizer, milestones=myParams.scheduler_milestones,
-                                                     gamma=myParams.scheduler_gamma)
-
-    if myParams.scheduler == 'StepLR':
-        myScheduler = optim.lr_scheduler.StepLR(myOptimizer, step_size=myParams.scheduler_step_size,
-                                                gamma=myParams.scheduler_gamma)
-
-    if myParams.scheduler == 'OneCycleLR':
-        # the one cycle scheduler
-        # warm up lr from initial_lr = max_lr / div_factor to max_lr for first div_factor steps
-        # then decay to min_lr = initial_lr / final_div_factor by cosine or linear annealing
-        # default: pct_start=5/total_steps, steps_per_epoch=1, final_div_factor=1e4
-        myScheduler = optim.lr_scheduler.OneCycleLR(myOptimizer, max_lr=myParams.scheduler_max_lr, epochs=myParams.num_epochs,
-                                                    steps_per_epoch=1, div_factor=myParams.scheduler_div_factor,
-                                                    pct_start=5/myParams.num_epochs,
-                                                    final_div_factor=myParams.scheduler_final_div_factor)
-
-    # fetch loss function and metrics
-    my_loss_fn = obj.loss_fn
-    my_metrics = obj.metrics
-
-    ### ----- train the model ----- ###
-    logging.info('Starting training for {} epoch(s)...'.format(myParams.num_epochs))
-
-    train_and_evaluate(myModel, myOptimizer, train_dl, test_dl, my_loss_fn, my_metrics, myParams,
-                       args.exp_dir, myDevice, myScheduler, args.restore_file, writer)
+    train_and_evaluate(model, optimizer, train_dl, test_dl, loss_fn, metrics, params,
+                       args.run_dir, device, scheduler, args.restore_file, writer)

@@ -1,0 +1,66 @@
+{
+    "jobname": "11062020",
+    "experiments": [
+        {
+            "model": "resnet18",
+            "data": 
+            {
+                "dataset": "CIFAR10"
+            },
+            "optimizer": 
+            {
+                "type": "SGD"
+            },
+            "lr": 
+            {
+                "type": "MultiStepLR"
+            }
+        },
+        {
+            "model": "resnet18",
+            "data": 
+            {
+                "dataset": "CIFAR10"
+            },
+            "optimizer": 
+            {
+                "type": "Adam"
+            },
+            "lr": 
+            {
+                "type": "MultiStepLR"
+            }
+        },
+        {
+            "model": "resnet50",
+            "data": 
+            {
+                "dataset": "CIFAR10"
+            },
+            "optimizer": 
+            {
+                "type": "SGD",
+                "lr": 1e-2
+            },
+            "lr": 
+            {
+                "type": "MultiStepLR"
+            }
+        },
+        {
+            "model": "resnet50",
+            "data": 
+            {
+                "dataset": "CIFAR10"
+            },
+            "optimizer": 
+            {
+                "type": "SGD"
+            },
+            "lr": 
+            {
+                "type": "StepLR"
+            }
+        }
+    ]
+}

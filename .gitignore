@@ -29,3 +29,6 @@
 96_work_logs/*
 97_assets/*
 **/98_notes/**
+**/.vscode/**
+dev.env
+.pylintrc
