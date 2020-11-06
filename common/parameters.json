@@ -1,0 +1,76 @@
+{
+    "optimizer": [
+        {
+            "type": "SGD",
+            "kwargs":
+            {
+                "lr": 1e-1,
+                "momentum": 0.9,
+                "weight_decay": 1e-4,
+                "nesterov": true
+            }
+        },
+        {
+            "type": "Adam",
+            "kwargs":
+            {
+                "lr": 1e-1,
+                "weight_decay": 1e-4
+            }
+        },
+        {
+            "type": "RMSprop",
+            "kwargs":
+            {
+                "lr": 1e-1,
+                "momentum": 0.9,
+                "weight_decay": 1e-4,
+                "alpha": 0.99                
+            }
+        }
+    ],
+    "scheduler": [
+        {
+            "type": "MultiStepLR",
+            "kwargs":
+            {
+                "milestones": [10, 20],
+                "gamma": 0.1
+            }
+        },
+        {
+            "type": "StepLR",
+            "kwargs":
+            {
+                "step_size": 5,
+                "gamma": 0.1
+            }
+        },
+        {
+            "type": "OneCycleLR",
+            "kwargs":
+            {
+                "max_lr": 0.1,
+                "epochs": 20,
+                "steps_per_epoch": 1,
+                "div_factor": 5,
+                "pct_start": 0.25,
+                "final_div_factor": 1e3
+            }
+        }
+    ],
+    "data": [
+        {
+            "dataset": "CIFAR10",
+            "kwargs":
+            {
+                "batch_size": 32,
+                "num_workers": 4,
+                "pin_memory": false,
+                "shuffle": true
+            }
+        }
+    ],
+    "save_summary_steps": 100,
+    "num_epochs": 2
+}

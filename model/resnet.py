@@ -8,6 +8,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.hub import load_state_dict_from_url
 
+from model.model_utils import register
+
 
 # resnet variants
 __all__ = [
@@ -439,66 +441,65 @@ def _resnet(arch, block, layers, pretrained, progress, **kwargs):
         model.load_state_dict(state_dict)
     return model
 
+@register(name='resnet18')
 def resnet18(pretrained=False, progress=True, **kwargs):
     """ ResNet-18 """
     return _resnet('resnet18', BasicBlock, [2, 2, 2, 2], pretrained, progress, **kwargs)
 
+@register(name='resnet34')
 def resnet34(pretrained=False, progress=True, **kwargs):
     """ ResNet-34 """
     return _resnet('resnet34', BasicBlock, [3, 4, 6, 3], pretrained, progress, **kwargs)
 
-
+@register(name='resnet50')
 def resnet50(pretrained=False, progress=True, **kwargs):
     """ ResNet-50 """
     return _resnet('resnet50', BottleNeck, [3, 4, 6, 3], pretrained, progress, **kwargs)
 
-
+@register(name='resnet101')
 def resnet101(pretrained=False, progress=True, **kwargs):
     """ ResNet-101 """
     return _resnet('resnet101', BottleNeck, [3, 4, 23, 3], pretrained, progress, **kwargs)
 
-
+@register(name='resnet152')
 def resnet152(pretrained=False, progress=True, **kwargs):
     """ ResNet-152 """
     return _resnet('resnet152', BottleNeck, [3, 8, 36, 3], pretrained, progress, **kwargs)
 
+@register(name='resnext50-32x4d')
 def resnext50_32x4d(pretrained=False, progress=True, **kwargs):
     """
     ResNeXt-50 32x4d
-
     layer = 50
     cardinality = 32
     bottleneck base_width = 4 (width_per_group)
-
     """
     kwargs['groups'] = 32
     kwargs['width_per_group'] = 4
     return _resnet('resnext50_32x4', BottleNeck, [3, 4, 6, 4], pretrained, progress, **kwargs)
 
+@register(name='resnext101-32x8d')
 def resnext101_32x8d(pretrained=False, progress=True, **kwargs):
     """
     ResNeXt-101 32x8d
-
     layer = 101
     cardinality = 32
     bottleneck base_width = 8
-
     """
     kwargs['groups'] = 32
     kwargs['width_per_group'] = 8
     return _resnet('resnext101_32x8d', BottleNeck, [3, 4, 23, 3], pretrained, progress, **kwargs)
 
-
+@register(name='wide-resnet50-2')
 def wide_resnet50_2(pretrained=False, progress=True, **kwargs):
     """
     wide ResNet-50-2
-
     model is the same as ResNet-50, except bottleneck base_width is doubled
-
     """
     kwargs['width_per_group'] = 64 * 2
     return _resnet('wide_resnet50_2', BottleNeck, [3, 4, 6, 3], pretrained, progress, **kwargs)
 
+@register(name='wide-resnet101-2')
 def wide_resnet101_2(pretrained=False, progress=True, **kwargs):
     """
     wide ResNet-101-2

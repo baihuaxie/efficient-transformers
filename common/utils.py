@@ -29,7 +29,7 @@ class Params():
 
     """
 
-    def __init__(self, json_path):
+    def __init__(self, json_path=None):
         with open(json_path) as f:
             params = json.load(f)
             self.__dict__.update(params)
@@ -187,3 +187,38 @@ def print_net_summary(log, net, input):
         summary(net, input_size=tuple(input.size()[1:]))
     sys.stdout = original_stdout
     f.close()
+
+
+def match_dict_by_value(lst, key, value):
+    """
+    match a dict by a specific key-value pair
+
+    Args:
+        lst: (list of dicts) a list of dicts, all contains a common key but may have different values
+        key: (str) common key
+        value: the value used to find the spcific dict
+
+    Returns:
+        dct: (dict) a dictionary element of lst that has the matched key:value pair
+    """
+    for dct in lst:
+        assert isinstance(dct, dict)
+        if key in dct.keys():
+            if dct[key] == value:
+                return dct
+    raise ValueError("key-value pair {}:{} not found in settings {}".format(key, value, lst))
+
+
+def dict_to_list(dct):
+    """
+    put all values in a dictionary (could by hierarchical) into a list object
+    also convert all elements into str
+    """
+    assert isinstance(dct, dict)
+    lst = []
+    for _, value in dct.items():
+        if isinstance(value, dict):
+            lst += [str(v) for v in value.values()]
+        else:
+            lst.append(str(value))
+    return lst
