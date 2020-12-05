@@ -6,7 +6,7 @@ import logging
 from tqdm import tqdm
 import numpy as np
 
-from common import utils
+from common.utils import RunningAverage
 
 def train(model, optimizer, loss_fn, dataloader, metrics, params, epoch, device, writer=None):
     """
@@ -22,6 +22,7 @@ def train(model, optimizer, loss_fn, dataloader, metrics, params, epoch, device,
         metrics: (dict) contains functions to return the value of each metric; metrics
                  functions accept torch.tensor inputs
         params: (Params) hyperparameters
+        epoch: (int) epoch index
         device: (str) device type; usually 'cuda:0' or 'cpu'
 
     """
@@ -35,16 +36,19 @@ def train(model, optimizer, loss_fn, dataloader, metrics, params, epoch, device,
     summ = []
 
     # initialize a running average object for loss
-    loss_avg = utils.RunningAverage()
+    loss_avg = RunningAverage()
+
+    # number of batches per epoch
+    num_batches = len(dataloader)
 
     # use tqdm for progress bar during training
-    with tqdm(total=len(dataloader)) as prog:
+    with tqdm(total=num_batches) as prog:
 
         # standard way to access DataLoader object for iteration over dataset
         for i, (train_batch, labels_batch) in enumerate(dataloader):
 
             # move to GPU if available
-            train_batch, labels_batch = train_batch.to(device,
+            train_batch, labels_batch = train_batch.to(device, \
                 non_blocking=True), labels_batch.to(device, non_blocking=True)
 
             # compute model output
@@ -62,21 +66,23 @@ def train(model, optimizer, loss_fn, dataloader, metrics, params, epoch, device,
             optimizer.step()
 
             # evaluate training summaries at certain iterations
-            if i % params.save_summary_steps == 0:
+            if (epoch*num_batches + i) % params.save_summary_steps == 0:
+
                 # move data to cpu
                 # train data and labels are torch.tensor objects
                 # compute all metrics on this batch
                 summary_batch = {metric: metrics[metric](output_batch.to('cpu'), \
-                                labels_batch.to('cpu')) for metric in metrics.keys()}
-                # add 'loss' as a metric -> because loss is already computed by loss_fn,
-                # no need to define another metric function
+                    labels_batch.to('cpu')) for metric in metrics.keys()}
+                # add 'loss' as a metric
                 summary_batch['loss'] = loss_detach.item()
+                # add 'iteration' as index
+                summary_batch['iteration'] = epoch*num_batches + i
 
                 # write training summary to tensorboard if applicable
                 if writer is not None:
                     for metric, value in summary_batch.items():
                         writer.add_scalar(
-                            'training '+metric, value, epoch*len(dataloader)+i
+                            'training '+metric, value, epoch*num_batches+i
                         )
 
                 # append summary
@@ -89,10 +95,10 @@ def train(model, optimizer, loss_fn, dataloader, metrics, params, epoch, device,
             prog.set_postfix(loss='{:05.3f}'.format(loss_avg()))
             prog.update()
 
-        # compute mean of all metrics in summary
-        metrics_mean = {metric: np.mean([x[metric] for x in summ]) for metric in summ[0].keys()}
-        metrics_string = ' ; '.join('{}: {:5.03f}'.format(k, v) for k, v in metrics_mean.items())
+    # compute mean of all metrics in summary
+    metrics_mean = {metric: np.mean([x[metric] for x in summ]) for metric in summ[0].keys()}
+    metrics_string = ' ; '.join('{}: {:5.03f}'.format(k, v) for k, v in metrics_mean.items())
 
-        logging.info("- Train metrics: {}".format(metrics_string))
+    logging.info("- Train metrics: {}".format(metrics_string))
 
-    return metrics_mean
+    return metrics_mean, summ

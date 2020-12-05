@@ -3,8 +3,7 @@
 """
 
 from model.model_utils import mapping
-
-from model import resnet, mnasnet, resnet_ImageNet
+from model import resnet
 
 def get_network_builder(name):
     """

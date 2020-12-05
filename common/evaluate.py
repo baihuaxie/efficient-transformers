@@ -1,9 +1,12 @@
 """ Evaluate trained model on the validation set """
 
 import logging
+from tqdm import tqdm
 import numpy as np
 
 import torch
+
+from common.utils import RunningAverage
 
 def evaluate(model, loss_fn, dataloader, metrics, params, device):
     """
@@ -32,28 +35,44 @@ def evaluate(model, loss_fn, dataloader, metrics, params, device):
     # initialize summary for current
     summ = []
 
-    # compute metrics over the dataset
-    for _, (data_batch, labels_batch) in enumerate(dataloader):
+    # initialize a running average object for loss
+    loss_avg = RunningAverage()
 
-        # move to GPU if available
-        if params.cuda:
-            data_batch, labels_batch = data_batch.to(device,
-                non_blocking=True), labels_batch.to(device, non_blocking=True)
+    # number of batches
+    num_batches = len(dataloader)
 
-        # compute the model output
-        with torch.no_grad():
-            output_batch = model(data_batch)
+    # use tqdm for progress bar during evaluation
+    with tqdm(total=num_batches) as prog:
 
-        # compute loss
-        loss = loss_fn(output_batch, labels_batch)
-        loss_detach = loss.detach()
+        # compute metrics over the dataset
+        for _, (data_batch, labels_batch) in enumerate(dataloader):
 
-        # move data to cpu
-        # compute metrics on this batch
-        summary_batch = {metric: metrics[metric](output_batch.to('cpu'), \
-            labels_batch.to('cpu')) for metric in metrics.keys()}
-        summary_batch['loss'] = loss_detach.item()
-        summ.append(summary_batch)
+            # move to GPU if available
+            if params.cuda:
+                data_batch, labels_batch = data_batch.to(device, \
+                    non_blocking=True), labels_batch.to(device, non_blocking=True)
+
+            # compute the model output
+            with torch.no_grad():
+                output_batch = model(data_batch)
+
+            # compute loss
+            loss = loss_fn(output_batch, labels_batch)
+            loss_detach = loss.detach()
+
+            # move data to cpu
+            # compute metrics on this batch
+            summary_batch = {metric: metrics[metric](output_batch.to('cpu'), \
+                labels_batch.to('cpu')) for metric in metrics.keys()}
+            summary_batch['loss'] = loss_detach.item()
+            summ.append(summary_batch)
+
+            # update the running average loss
+            loss_avg.update(loss_detach.item())
+
+            # update progress bar to show running average for loss
+            prog.set_postfix(loss='{:05.3f}'.format(loss_avg()))
+            prog.update()
 
     # compute the mean of all metrics on validation set
     metrics_mean = {metric: np.mean([x[metric] for x in summ]) for metric in summ[0].keys()}

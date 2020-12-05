@@ -11,6 +11,31 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+
+# maitain all metrics used in the training and evaluation loops in this dictionary
+global metrics
+metrics = {}
+
+
+# decorator
+def register(name):
+    """
+    Decorator: register a metric function in a dictionary 'metrics' by name: func
+
+    Args:
+        name: (str) metric name; used as arguments passed to the decorator
+
+    """
+    def _decorator(func):
+        """
+        inner decorator function
+        - no need to modify behaviors so no wrappers
+        """
+        metrics[name] = func
+        return func
+    return _decorator
+
+
 def loss_fn(outputs: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
     """
     Computes the cross entropy loss given the predicted log probabilites and labels
@@ -33,6 +58,7 @@ def loss_fn(outputs: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
     return criterion(outputs, labels)
 
 
+@register(name='accuracy')
 def accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> float:
     """
     Computes the classification accuracy metric
@@ -43,14 +69,6 @@ def accuracy(outputs: torch.Tensor, labels: torch.Tensor) -> float:
 
     Returns:
         accuracy: (float) accuracy in [0,1]
-
     """
-
     _, predicted_labels = torch.max(outputs, dim=1)
     return np.sum(predicted_labels.numpy() == labels.numpy()) / float(labels.numpy().size)
-
-
-# maitain all metrics used in the training and evaluation loops in this dictionary
-metrics = {
-    'accuracy': accuracy,
-}

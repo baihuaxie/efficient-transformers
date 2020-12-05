@@ -30,31 +30,39 @@
 
 """
 
+import os.path as op
+
 import torch
 import torchvision.transforms as transforms
+import torchvision.datasets as ds
 from torch.utils.data import DataLoader
 from torch.utils.data import Subset
-import torchvision.datasets as ds
 
+normalize = transforms.Normalize(
+    mean=[0.485, 0.456, 0.406],
+    std=[0.229, 0.224, 0.225]
+)
 # transforms pipeline for train set
 train_transform = transforms.Compose(
     [
+        transforms.RandomResizedCrop(224),
         transforms.RandomHorizontalFlip(),
-        transforms.RandomCrop(size=32, padding=4),
         transforms.ToTensor(),
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        normalize
     ]
 )
 
-# transforms pipeline for test set
-test_transform = transforms.Compose(
+# transforms pipeline for val set
+val_transform = transforms.Compose(
     [
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
         transforms.ToTensor(),
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        normalize
     ]
 )
 
-def fetch_dataset(types, datadir, dataset=None):
+def fetch_dataset(types, datadir, dataset=None, trainset_kwargs=None, valset_kwargs=None):
     """
     Fetches the dataset objects from torchvision.datasets
 
@@ -64,6 +72,10 @@ def fetch_dataset(types, datadir, dataset=None):
         types: (list) has one or more of "train, val, test" depending on the dataset
         datadir: (str) file path to the dataset
         dataset: (str) name of the dataset to be loaded
+        trainset_kwargs: (dict) keyword arguments passed to torchvision.dataset.Dataset() function call
+                         in call to fetch_dataset() for training set
+        valset_kwargs: (dict) keyword arguments passed to torchvision.dataset.Dataset() function call
+                       in call to fetch_dataset() for validation set
 
     Returns:
         dataset: (dict) contains the dataset object for each type in types
@@ -71,34 +83,44 @@ def fetch_dataset(types, datadir, dataset=None):
 
     datasets = {}
 
+    # default dataset
     if dataset is None:
         dataset = 'CIFAR10'
+    # imagenet
+    if dataset == 'ImageNet':
+        dataset = 'ImageFolder'
+        traindir = op.join(datadir, 'train')
+        valdir = op.join(datadir, 'val')
 
-    for split in ['train', 'val', 'test']:
+    for split in ['train', 'val']:
         if split in types:
 
             # load train set
             if split == 'train':
-                dataset = getattr(ds, dataset)(datadir, download=False, train=True, \
-                    transform=train_transform)
+                dataset = getattr(ds, dataset)(traindir, transform=train_transform, \
+                    **trainset_kwargs)
 
-            # load test set
-            if split == 'test':
-                dataset = getattr(ds, dataset)(datadir, download=False, train=False, \
-                    transform=test_transform)
+            # load val set
+            if split == 'val':
+                dataset = getattr(ds, dataset)(valdir, transform=val_transform, \
+                    **valset_kwargs)
 
             datasets[split] = dataset
 
     return datasets
 
 
-def select_n_random(dataset_type, datadir, dataset=None, n=1):
+def select_n_random(dataset_type, datadir, trainset_kwargs, valset_kwargs, dataset=None, n=1):
     """
     Select n random [data, label] points from dataset
 
     Args:
         dataset_type: (str) a string of either 'train', 'val' or 'test'
         datadir: (str) file path to the raw dataset
+        trainset_kwargs: (dict) keyword arguments passed to torchvision.dataset.Dataset() function call
+                         in call to fetch_dataset() for training set
+        valset_kwargs: (dict) keyword arguments passed to torchvision.dataset.Dataset() function call
+                       in call to fetch_dataset() for validation set
         dataset: (str) name of dataset
         n: (int) number of selected data samples
 
@@ -108,7 +130,7 @@ def select_n_random(dataset_type, datadir, dataset=None, n=1):
         labels: (tensor) labels stored in ndarrays
 
     """
-    dataset = fetch_dataset(dataset_type, datadir, dataset)[dataset_type]
+    dataset = fetch_dataset(dataset_type, datadir, dataset, trainset_kwargs, valset_kwargs)[dataset_type]
     data = torch.from_numpy(dataset.data).permute(0, 3, 1, 2)
     labels = torch.Tensor(dataset.targets)
 
@@ -119,7 +141,7 @@ def select_n_random(dataset_type, datadir, dataset=None, n=1):
 
 
 
-def fetch_dataloader(types, datadir, dataset, **kwargs):
+def fetch_dataloader(types, datadir, dataset, trainloader_kwargs, trainset_kwargs, valloader_kwargs, valset_kwargs):
     """
     Fetches the dataloader objects for each type from datadir.
 
@@ -127,7 +149,12 @@ def fetch_dataloader(types, datadir, dataset, **kwargs):
         types: (list) has one or more of "train, val, test" depending on the dataset
         datadir: (str) file path containing the raw dataset
         dataset: (str) dataset name; e.g., CIFAR10
-        **kwargs: pointer to keyword arguments passed to dataloader
+        trainloader_kwargs: (dict) keyword arguments passed to Dataloader() function for training set
+        trainset_kwargs: (dict) keyword arguments passed to torchvision.dataset.Dataset() function call
+                         in call to fetch_dataset() for training set
+        valloader_kwargs: (dict) keyword arguments passed to Dataloader() function for validation set
+        valset_kwargs: (dict) keyword arguments passed to torchvision.dataset.Dataset() function call
+                       in call to fetch_dataset() for validation set
 
     Returns:
         dataloadr: (dict) contains the DataLoader objects for each type in types
@@ -135,25 +162,26 @@ def fetch_dataloader(types, datadir, dataset, **kwargs):
 
     dataloaders = {}
 
-    for split in ['train', 'val', 'test']:
+    for split in ['train', 'val']:
         if split in types:
 
             # apply train set tranforms if train data
             if split == 'train':
-                trainset = fetch_dataset(split, datadir, dataset)['train']
-                dataloader = DataLoader(trainset, **kwargs)
+                trainset = fetch_dataset(split, datadir, dataset, trainset_kwargs, valset_kwargs)['train']
+                dataloader = DataLoader(trainset, **trainloader_kwargs)
 
-            # apply test set transforms if test data
-            if split == 'test':
-                testset = fetch_dataset(split, datadir, dataset)['test']
-                dataloader = DataLoader(testset, **kwargs)
+            # apply val set transforms if val data
+            if split == 'val':
+                valset = fetch_dataset(split, datadir, dataset, trainset_kwargs, valset_kwargs)['val']
+                dataloader = DataLoader(valset, **valloader_kwargs)
 
             dataloaders[split] = dataloader
 
     return dataloaders
 
 
-def fetch_subset_dataloader(types, datadir, dataset, batchsz=32, batch_num=10, **kwargs):
+def fetch_subset_dataloader(types, datadir, dataset, trainloader_kwargs, trainset_kwargs, \
+    valloader_kwargs, valset_kwargs, batchsz=32, batch_num=10):
     """
     Fetches dataloader objects for a subset of each type of data
 
@@ -163,9 +191,14 @@ def fetch_subset_dataloader(types, datadir, dataset, batchsz=32, batch_num=10, *
         types: (list) has one or more of "train, val, test" depending on the dataset
         datadir: (str) file path containing the raw dataset
         dataset: (str) dataset name; e.g., CIFAR10
+        trainloader_kwargs: (dict) keyword arguments passed to Dataloader() function for training set
+        trainset_kwargs: (dict) keyword arguments passed to torchvision.dataset.Dataset() function call
+                         in call to fetch_dataset() for training set
+        valloader_kwargs: (dict) keyword arguments passed to Dataloader() function for validation set
+        valset_kwargs: (dict) keyword arguments passed to torchvision.dataset.Dataset() function call
+                       in call to fetch_dataset() for validation set
         batchsz: (int) batch size
         batch_num: (int) number of batches in the subset
-        **kwargs: pointer to keyword arguments passed to dataloader
 
     Returns:
         dataloadr: (dict) contains the DataLoader objects for each type in types
@@ -173,22 +206,22 @@ def fetch_subset_dataloader(types, datadir, dataset, batchsz=32, batch_num=10, *
 
     dataloaders = {}
 
-    for split in ['train', 'val', 'test']:
+    for split in ['train', 'val']:
         if split in types:
 
             # return trainset subset dataloader
             if split == 'train':
-                trainset = fetch_dataset(split, datadir, dataset)['train']
+                trainset = fetch_dataset(split, datadir, dataset, trainset_kwargs, valset_kwargs)['train']
                 subset_indices = range(batchsz * batch_num)
                 trainset_subset = Subset(trainset, subset_indices)
-                dataloader = DataLoader(trainset_subset, **kwargs)
+                dataloader = DataLoader(trainset_subset, **trainloader_kwargs)
 
-            # return testset subset dataloader
-            if split == 'test':
-                testset = fetch_dataset(split, datadir, dataset)['test']
+            # return valset subset dataloader
+            if split == 'val':
+                valset = fetch_dataset(split, datadir, dataset, trainset_kwargs, valset_kwargs)['val']
                 subset_indices = range(batchsz * batch_num)
-                testset_subset = Subset(testset, subset_indices)
-                dataloader = DataLoader(testset_subset, **kwargs)
+                valset_subset = Subset(valset, subset_indices)
+                dataloader = DataLoader(valset_subset, **valloader_kwargs)
 
             dataloaders[split] = dataloader
 

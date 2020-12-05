@@ -151,25 +151,6 @@ def save_checkpoint(state, is_best, checkpoint):
         shutil.copyfile(filepath, os.path.join(checkpoint, 'best.pth.zip'))
 
 
-def matplotlib_imshow(img, one_channel=False):
-    """ 
-    helper function to show an image
-
-    Args:
-        img: (tensor) 2D image
-
-    """
-    if one_channel:
-        img = img.mean(dim=0)
-    # un-normalize
-    img = img / 2 + 0.5 
-    npimg = img.numpy()
-    if one_channel:
-        plt.imshow(npimg, cmap='Greys')
-    else:
-        plt.imshow(np.transpose(npimg, (1, 2, 0)))
-
-
 def print_net_summary(log, net, input):
     """ 
     Print the net summary into a log file 
@@ -211,14 +192,18 @@ def match_dict_by_value(lst, key, value):
 
 def dict_to_list(dct):
     """
-    put all values in a dictionary (could by hierarchical) into a list object
+    put all values in a dictionary (could by 3-level hierarchical) into a list object
     also convert all elements into str
     """
     assert isinstance(dct, dict)
     lst = []
-    for _, value in dct.items():
+    for value in dct.values():
         if isinstance(value, dict):
-            lst += [str(v) for v in value.values()]
+            for val in value.values():
+                if isinstance(val, dict):
+                    lst += [str(v) for v in val.values() if v is not None]
+                else:
+                    lst.append(str(val))
         else:
             lst.append(str(value))
     return lst

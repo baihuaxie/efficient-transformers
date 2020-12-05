@@ -1,0 +1,61 @@
+{
+    "axes_style":
+    {
+        "axes.facecolor": "white",
+        "axes.edgecolor": ".8",
+        "axes.grid": true,
+        "axes.axisbelow": true,
+        "axes.labelcolor": ".15",
+        "figure.facecolor": "white",
+        "grid.color": ".8",
+        "grid.linestyle": "-",
+        "text.color": ".15",
+        "xtick.color": ".15",
+        "ytick.color": ".15",
+        "xtick.direction": "in",
+        "ytick.direction": "in",
+        "lines.solid_capstyle": "round",
+        "patch.edgecolor": "w",
+        "image.cmap": "rocket",
+        "font.family": ["sans-serif"],
+        "font.sans-serif": ["Arial", "DejaVu Sans", "Liberation Sans", "Bitstream Vera Sans", "sans-serif"],
+        "patch.force_edgecolor": true,
+        "xtick.bottom": true,
+        "xtick.top": false,
+        "ytick.left": true,
+        "ytick.right": false,
+        "axes.spines.left": true,
+        "axes.spines.bottom": true,
+        "axes.spines.right": true,
+        "axes.spines.top": true
+    },  
+    "plotting_context":
+    {
+        "font.size": 20,
+        "axes.labelsize": 20,
+        "axes.titlesize": 20,
+        "xtick.labelsize": 15,
+        "ytick.labelsize": 15,
+        "legend.fontsize": 10,
+        "axes.linewidth": 3.0,
+        "grid.linewidth": 1.0,
+        "lines.linewidth": 2.0,
+        "lines.markersize": 5.0,
+        "patch.linewidth": 0.8,
+        "xtick.major.width": 1.0,
+        "ytick.major.width": 1.0,
+        "xtick.minor.width": 0.8,
+        "ytick.minor.width": 0.8,
+        "xtick.major.size": 5.0,
+        "ytick.major.size": 5.0,
+        "xtick.minor.size": 3.0,
+        "ytick.minor.size": 3.0
+    },
+    "yaxis":
+    {
+        "accuracy":
+        {
+            "ylim": [0.5, 1.0]
+        }
+    }
+}

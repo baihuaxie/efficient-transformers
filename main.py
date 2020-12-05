@@ -15,11 +15,13 @@ Note:
 
 """
 
+## this is a test
+
 # python
 import argparse
 import os
 import logging
-
+import numpy
 # torch
 import torch
 import torch.nn as nn
@@ -27,24 +29,25 @@ import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 
 
-from common.data_loader import select_n_random, fetch_dataloader, fetch_subset_dataloader
+from common.data_loader import fetch_dataloader, fetch_subset_dataloader
 from common.utils import Params, load_checkpoint, save_checkpoint, set_logger, print_net_summary
 from common.objectives import loss_fn, metrics
 from common.evaluate import evaluate
 from common.train import train
+from common.plots import save_batch_summary
 from model.build_models import get_network_builder
 
 
 # commandline
 parser = argparse.ArgumentParser()
-parser.add_argument('--run_dir', default='./experiments/launch-test',
+parser.add_argument('--run_dir', default='./experiments/12-04-2020/resnet152_ImageNet_SGD_MultiStepLR_1',
                     help='Directory containing the runset.json')
 parser.add_argument('--data_dir', default='./data/',
                     help='Directory containing the dataset')
 parser.add_argument('--restore_file', default='best',
                     help='Optional, name of file in --run_dir containing weights / \
                         hyperparameters to be loaded before training')
-parser.add_argument('--run_mode', default='test', help='test mode run a subset \
+parser.add_argument('--run_mode', default='train', help='test mode run a subset \
     of batches to test flow')
 
 
@@ -93,8 +96,8 @@ def train_and_evaluate(model, optimizer, train_loader, val_loader, loss_fn, metr
             logging.info("learning rate = {} for parameter group {}".format(param_group['lr'], i))
 
         # train for one full pass over the training set
-        train_metrics = train(model, optimizer, loss_fn, train_loader, metrics, \
-            params, epoch, device, writer)
+        train_metrics, batch_summ = train(model, optimizer, loss_fn, train_loader, \
+            metrics, params, epoch, device, writer)
 
         # evaluate for one epoch on the validation set
         val_metrics = evaluate(model, loss_fn, val_loader, metrics, params, device)
@@ -117,6 +120,9 @@ def train_and_evaluate(model, optimizer, train_loader, val_loader, loss_fn, metr
             is_best=is_best,
             checkpoint=run_dir
         )
+
+        # save batch summaries
+        save_batch_summary(run_dir, batch_summ)
 
         # if best accuray
         if is_best:
@@ -151,8 +157,16 @@ if __name__ == '__main__':
     params = Params(json_path)
 
     # parse run parameters
+    try:
+        # model kwargs could be None
+        model_kwargs = params.model['kwargs']
+    except KeyError:
+        raise "Model keyword argument is None!"
     dataset = params.data['dataset']
-    dataset_kwargs = params.data['kwargs']
+    trainloader_kwargs = params.data['trainloader-kwargs']
+    trainset_kwargs = params.data['trainset-kwargs']
+    valloader_kwargs = params.data['valloader-kwargs']
+    valset_kwargs = params.data['valset-kwargs']
     optim_type = params.optimizer['type']
     optim_kwargs = params.optimizer['kwargs']
     lr_type = params.scheduler['type']
@@ -175,22 +189,13 @@ if __name__ == '__main__':
 
     ### ------ instantiations ----- ###
     # build model
-    model = get_network_builder(params.model)().to(device)
+    model = get_network_builder(params.model['network'])(**model_kwargs)
 
     # build the optimizer
     optimizer = getattr(optim, optim_type)(model.parameters(), **optim_kwargs)
 
     # build learning rate scheduler
-    scheduler = getattr(optim.lr_scheduler, lr_type)(optimizer, lr_kwargs)
-
-    # add model architecture to tensorboard & log
-    images, _ = select_n_random('train', args.data_dir, dataset, n=2)
-    images = images.to(device)
-    # 1) write architecutre to tensorboard
-    writer.add_graph(model, images.float())
-    # 2) write architecture to log file using torchsummary package
-    print_net_summary(args.run_dir+'/net_summary.log', model, images)
-
+    scheduler = getattr(optim.lr_scheduler, lr_type)(optimizer, **lr_kwargs)
 
     ### ------ load dataset ----- ###
     logging.info('Loading dataset...')
@@ -198,20 +203,31 @@ if __name__ == '__main__':
     # fetch the data loaders
     # if in test mode, fetch 10 batches (default batch size = 32)
     if args.run_mode == 'test':
-        data_loaders = fetch_subset_dataloader(['train', 'test'], args.data_dir, dataset, \
-            **dataset_kwargs)
+        data_loaders = fetch_subset_dataloader(['train', 'val'], args.data_dir, dataset, \
+            trainloader_kwargs, trainset_kwargs, valloader_kwargs, valset_kwargs)
         train_dl = data_loaders['train']
-        test_dl = data_loaders['test']
+        val_dl = data_loaders['val']
     else:
-        data_loaders = fetch_dataloader(['train', 'test'], args.data_dir, dataset, \
-            **dataset_kwargs)
+        data_loaders = fetch_dataloader(['train', 'val'], args.data_dir, dataset, \
+            trainloader_kwargs, trainset_kwargs, valloader_kwargs, valset_kwargs)
         train_dl = data_loaders['train']
-        test_dl = data_loaders['test']
+        val_dl = data_loaders['val']
 
     logging.info('- done.')
+
+    # get a single input batch, add model architecture to tensorboard & log
+    # images, labels = next(iter(val_dl))
+    # images = images.to(device)
+    # 1) write architecutre to tensorboard
+    # writer.add_graph(model, images.float())
+    # 2) write architecture to log file using torchsummary package
+    # print_net_summary(args.run_dir+'/net_summary.log', model, images)
+
+    # move model to GPU
+    model = model.to(device)
 
     # start training
     logging.info('Starting training for {} epoch(s)...'.format(params.num_epochs))
 
-    train_and_evaluate(model, optimizer, train_dl, test_dl, loss_fn, metrics, params,
+    train_and_evaluate(model, optimizer, train_dl, val_dl, loss_fn, metrics, params,
                        args.run_dir, device, scheduler, args.restore_file, writer)
